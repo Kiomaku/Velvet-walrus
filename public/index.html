@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Velvet Walrus</title>
+<style>
+  /* Drop YekanBakh-Regular.woff2 / -Bold.woff2 from your Khargoosh project into public/fonts/ */
+  @font-face { font-family: "Yekan Bakh"; font-weight: 400; font-display: swap;
+    src: local("Yekan Bakh"), url("/fonts/YekanBakh-Regular.woff2") format("woff2"); }
+  @font-face { font-family: "Yekan Bakh"; font-weight: 700; font-display: swap;
+    src: local("Yekan Bakh Bold"), url("/fonts/YekanBakh-Bold.woff2") format("woff2"); }
+  :root {
+    --bg:#0e0c14; --card:#171420; --line:#2a2538; --text:#eeeaf7; --muted:#8c85a3;
+    --accent:#b69cff; --ok:#5ee0a0; --warn:#ffc15e; --bad:#ff6b81;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f4fb; --card:#fff; --line:#e4dff0; --text:#1d1830; --muted:#6f688a; --accent:#6d4fd8; color-scheme: light; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:"Yekan Bakh", system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:32px 20px 60px; }
+  header { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+  h1 { margin:0; font-size:28px; letter-spacing:-.02em; }
+  h1 small { color:var(--muted); font-weight:400; font-size:14px; margin-inline-start:8px; }
+  .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  button { font:inherit; background:var(--accent); color:#120d24; border:0; border-radius:10px; padding:9px 16px; cursor:pointer; font-weight:700; }
+  button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
+  button.mini { padding:3px 10px; font-size:12px; }
+  .lang { display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .lang button { border-radius:0; background:transparent; color:var(--muted); padding:7px 12px; }
+  .lang button[aria-pressed="true"] { background:var(--accent); color:#120d24; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin:24px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; }
+  .stat b { display:block; font-size:34px; margin-top:4px; }
+  .stat span { color:var(--muted); font-size:13px; }
+  h2 { font-size:15px; margin:0 0 12px; color:var(--muted); font-weight:700; }
+  svg.spark { width:100%; height:90px; direction:ltr; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:start; color:var(--muted); font-weight:400; padding:6px 8px; }
+  td { padding:8px; border-top:1px solid var(--line); white-space:nowrap; max-width:260px; overflow:hidden; text-overflow:ellipsis; }
+  .ltr { direction:ltr; unicode-bidi:isolate; text-align:start; }
+  .scroll { overflow-x:auto; }
+  .pill { padding:2px 9px; border-radius:99px; font-size:12px; border:1px solid currentColor; }
+  .pending{color:var(--warn)} .active{color:var(--accent)} .completed{color:var(--ok)} .dead{color:var(--bad)}
+  .tabs { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .tabs button[aria-pressed="true"] { background:var(--accent); color:#120d24; }
+  .cols { display:grid; grid-template-columns:2fr 1fr; gap:14px; }
+  @media (max-width:800px) { .cols { grid-template-columns:1fr; } }
+  footer { margin-top:40px; text-align:center; color:var(--muted); font-size:13px; }
+  footer a { color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🦭 Velvet Walrus <small data-t="subtitle"></small></h1>
+    <div class="actions">
+      <div class="lang" role="group" aria-label="Language">
+        <button data-lang="fa" aria-pressed="true">فارسی</button>
+        <button data-lang="en" aria-pressed="false">EN</button>
+      </div>
+      <button id="burst" data-t="burst"></button>
+      <button id="poison" class="ghost" data-t="poison"></button>
+    </div>
+  </header>
+
+  <section class="grid" id="stats"></section>
+
+  <section class="cols">
+    <div class="card"><h2 data-t="throughput"></h2><svg class="spark" id="spark" viewBox="0 0 300 90" preserveAspectRatio="none"></svg></div>
+    <div class="card"><h2 data-t="workers"></h2><div id="workers" class="scroll"></div></div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <div class="tabs" id="tabs"></div>
+    <div class="scroll"><table><thead><tr id="thead"></tr></thead><tbody id="jobs"></tbody></table></div>
+  </section>
+
+  <footer id="sig"></footer>
+</main>
+
+<script>
+const I18N = {
+  fa: {
+    subtitle: "صف کار توزیع‌شده", burst: "ارسال ۲۰ کار", poison: "ارسال کار سمی",
+    throughput: "کارهای انجام‌شده در دقیقه · ۳۰ دقیقه اخیر", workers: "کارگرها",
+    noWorkers: "هیچ کارگری آنلاین نیست", done: "انجام شد", all: "همه", retry: "تلاش دوباره",
+    status: { pending: "در صف", active: "در حال اجرا", completed: "انجام‌شده", dead: "مرده" },
+    cols: ["شناسه", "نام", "صف", "اولویت", "وضعیت", "تلاش", "مدت", "آخرین خطا", ""],
+    signature: (n) => `طراحی و توسعه توسط ${n} · Postgres · Redis · TypeScript`,
+  },
+  en: {
+    subtitle: "distributed job queue", burst: "Fire 20 jobs", poison: "Send poison job",
+    throughput: "Completed per minute · last 30 min", workers: "Workers",
+    noWorkers: "No workers online", done: "done", all: "all", retry: "Retry",
+    status: { pending: "pending", active: "active", completed: "completed", dead: "dead" },
+    cols: ["ID", "Name", "Queue", "Pri", "Status", "Attempts", "Duration", "Last error", ""],
+    signature: (n) => `Designed &amp; engineered by ${n} · Postgres · Redis · TypeScript`,
+  },
+};
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const store = {
+  get: () => { try { return localStorage.getItem("vw-lang"); } catch { return null; } },
+  set: (v) => { try { localStorage.setItem("vw-lang", v); } catch {} },
+};
+
+let lang = store.get() === "en" ? "en" : "fa"; // Farsi by default
+let filter = "";
+let meta = null;
+const t = () => I18N[lang];
+const num = (n) => new Intl.NumberFormat(lang === "fa" ? "fa-IR" : "en-US").format(n);
+
+const api = async (url, opts) => {
+  const r = await fetch(url, opts && { ...opts, headers: { "Content-Type": "application/json" }, body: JSON.stringify(opts.body) });
+  return r.json();
+};
+const post = (body) => api("/api/jobs", { method: "POST", body });
+
+$("#burst").onclick = async () => {
+  const mix = [["email.send","emails"],["image.resize","media"],["report.generate","default"]];
+  await Promise.all(Array.from({ length: 20 }, (_, i) => {
+    const [name, queue] = mix[i % mix.length];
+    return post({ name, queue, priority: Math.floor(Math.random() * 10), payload: { to: `user${i}@example.com` } });
+  }));
+  refresh();
+};
+$("#poison").onclick = async () => { await post({ name: "always.fails", maxAttempts: 3 }); refresh(); };
+
+document.querySelectorAll(".lang button").forEach((b) => (b.onclick = () => setLang(b.dataset.lang)));
+
+function setLang(next) {
+  lang = next;
+  store.set(lang);
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+  document.querySelectorAll(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t()[el.dataset.t]));
+  $("#thead").innerHTML = t().cols.map((c) => `<th>${c}</th>`).join("");
+  if (meta) {
+    const name = lang === "fa" ? meta.author.nameFa : meta.author.name;
+    $("#sig").innerHTML = t().signature(`<a href="${esc(meta.author.url)}">${esc(name)}</a>`);
+  }
+  renderTabs();
+  refresh();
+}
+
+function renderTabs() {
+  $("#tabs").innerHTML = ["", "pending", "active", "completed", "dead"]
+    .map((s) => `<button class="ghost mini" data-s="${s}" aria-pressed="${s === filter}">${s ? t().status[s] : t().all}</button>`).join("");
+  document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => { filter = b.dataset.s; renderTabs(); refresh(); }));
+}
+
+function spark(points) {
+  const max = Math.max(1, ...points), w = 300 / points.length;
+  $("#spark").innerHTML = points.map((n, i) => {
+    const h = (n / max) * 80;
+    return `<rect x="${i * w + 1}" y="${88 - h}" width="${w - 2}" height="${Math.max(h, 1)}" rx="2" fill="var(--accent)" opacity="${n ? 1 : .25}"/>`;
+  }).join("");
+}
+
+async function refresh() {
+  const [s, jobs] = await Promise.all([api("/api/stats"), api("/api/jobs" + (filter ? `?status=${filter}` : ""))]);
+  $("#stats").innerHTML = ["pending", "active", "completed", "dead"]
+    .map((k) => `<div class="card stat"><span class="${k}">● ${t().status[k]}</span><b>${num(s[k])}</b></div>`).join("");
+  spark(s.throughput);
+  $("#workers").innerHTML = s.workers.length
+    ? `<table>${s.workers.map((w) => `<tr><td class="ltr">${esc(w.id)}</td><td>${num(w.inflight)}/${num(w.concurrency)}</td><td>${num(w.processed)} ${t().done}</td></tr>`).join("")}</table>`
+    : `<span style="color:var(--muted)">${t().noWorkers}</span>`;
+  $("#jobs").innerHTML = jobs.map((j) => `<tr>
+    <td>#${num(j.id)}</td><td class="ltr">${esc(j.name)}</td><td class="ltr">${esc(j.queue)}</td><td>${num(j.priority)}</td>
+    <td><span class="pill ${j.status}">${t().status[j.status]}</span></td><td>${num(j.attempts)}/${num(j.max_attempts)}</td>
+    <td>${j.duration_ms ? num(Math.round(j.duration_ms)) + " ms" : "–"}</td>
+    <td class="ltr" title="${esc(j.last_error)}">${esc(j.last_error) || "–"}</td>
+    <td>${j.status === "dead" ? `<button class="mini" onclick="retry(${j.id})">${t().retry}</button>` : ""}</td></tr>`).join("");
+}
+window.retry = async (id) => { await api(`/api/jobs/${id}/retry`, { method: "POST", body: {} }); refresh(); };
+
+api("/api/meta").then((m) => { meta = m; setLang(lang); });
+setLang(lang);
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

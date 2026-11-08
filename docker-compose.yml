@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: walrus, POSTGRES_PASSWORD: walrus, POSTGRES_DB: walrus }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U walrus"]
+      interval: 3s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+  api:
+    build: .
+    ports: ["3000:3000"]
+    environment: &env
+      DATABASE_URL: postgres://walrus:walrus@postgres:5432/walrus
+      REDIS_URL: redis://redis:6379
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
+  worker:
+    build: .
+    command: ["node", "dist/worker.js"]
+    environment: *env
+    stop_grace_period: 40s
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
+volumes:
+  pgdata:

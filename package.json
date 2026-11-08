@@ -8,6 +8,8 @@
     "dev:api": "tsx watch src/server.ts",
     "dev:worker": "tsx watch src/worker.ts",
     "build": "tsc -p .",
+    "test": "node --test --test-reporter=spec \"tests/**/*.test.ts\"",
+    "screenshots": "python3 scripts/capture.py",
     "start:api": "node dist/server.js",
     "start:worker": "node dist/worker.js"
   },

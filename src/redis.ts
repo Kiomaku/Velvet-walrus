@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import { config } from './config';
+import { grantedTokens } from './policy';
 
 export const redis = new Redis(config.redisUrl, { maxRetriesPerRequest: 3 });
 
@@ -12,7 +13,7 @@ export async function acquire(queue: string, want: number, perSecond?: number): 
   const key = `rl:${queue}:${Math.floor(Date.now() / 1000)}`;
   const used = await redis.incrby(key, want);
   if (used === want) await redis.expire(key, 3);
-  const granted = Math.max(0, Math.min(want, perSecond - (used - want)));
+  const granted = grantedTokens(used, want, perSecond);
   if (granted < want) await redis.decrby(key, want - granted);
   return granted;
 }

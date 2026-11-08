@@ -1,5 +1,6 @@
 import { pool } from './db';
 import { config } from './config';
+import { backoffSeconds } from './policy';
 
 export type JobStatus = 'pending' | 'active' | 'completed' | 'dead';
 
@@ -62,12 +63,6 @@ export const complete = (id: number, result: unknown) =>
     [id, JSON.stringify(result ?? null)],
   );
 
-/** Exponential backoff with full jitter: random(0, min(cap, base * 2^(attempt-1))). */
-export function backoffSeconds(attempt: number): number {
-  const ceiling = Math.min(config.backoff.capSec, config.backoff.baseSec * 2 ** (attempt - 1));
-  return Math.random() * ceiling;
-}
-
 /** Retry with backoff, or move to the dead-letter state once attempts are exhausted. */
 export const fail = (job: Pick<Job, 'id' | 'attempts'>, error: string) =>
   pool.query(
@@ -79,7 +74,7 @@ export const fail = (job: Pick<Job, 'id' | 'attempts'>, error: string) =>
        locked_at   = NULL,
        finished_at = CASE WHEN attempts >= max_attempts THEN now() END
      WHERE id = $1`,
-    [job.id, error.slice(0, 2000), backoffSeconds(job.attempts)],
+    [job.id, error.slice(0, 2000), backoffSeconds(job.attempts, config.backoff.baseSec, config.backoff.capSec)],
   );
 
 /** Crash recovery: re-queue (or bury) jobs whose worker vanished mid-flight. */
